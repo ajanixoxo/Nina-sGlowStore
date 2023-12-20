@@ -71,7 +71,7 @@
                             <div class="header-top_right">
                                 <div class="ht-menu">
                                     <ul>
-                                        <li><a href="javascript:void(0)">Language <i class="lastudioicon-down-arrow"></i></a>
+                                        <!-- <li><a href="javascript:void(0)">Language <i class="lastudioicon-down-arrow"></i></a>
                                             <ul class="yena-dropdown ht-dropdown">
                                                 <li><a href="javascript:void(0)">English</a></li>
                                                 <li><a href="javascript:void(0)">Germany</a></li>
@@ -86,7 +86,7 @@
                                                 <li><a href="javascript:void(0)">EUR</a></li>
                                                 <li><a href="javascript:void(0)">NGN</a></li>
                                             </ul>
-                                        </li>
+                                        </li> -->
                                         <li><a href="javascript:void(0)">
                                           
                             
@@ -103,7 +103,7 @@
                                                     </a>
                                                   </li>
                                                 <li><a href="/cart">Your Cart</a></li>
-                                                <li><a href="/wishlist">Wishlist</a></li>
+                                               
                                             </ul>
                                         </li>
                                     </ul>
@@ -243,21 +243,16 @@
                                                     <li>
                                                         <span class="megamenu-title">Shop Pages</span>
                                                         <ul>
-                                                            <%# if(req.isAuthenticated){ %>
+                                                  
                                                                 <li><a href="/my-account">My Account</a></li>
                                                                 <li><a href="/cart">Shopping Cart</a></li>
                                                             <li><a href="/shop-fullwidth">Shop</a></li>
 
-                                                     
-                                                            <%# }else{  %>
-                                                          
-                                                                <li><a href="/my-account">My Account</a></li>
-                                                                <li><a href="/login-register">Login | Register</a></li>
-                                                                <li><a href="/cart">Shopping Cart</a></li>
-                                                            <li><a href="/shop-fullwidth">Shop</a></li>
+                                                                <li><a href="/login-register">Login | Register</a> <b style="color: red;">Don't Click 👆 if u are already logged in</b></li>
+                                                                
 
                                                          
-                                                                <%# } %>
+                                                       
                                                      
                                                           
                                                         </ul>
@@ -360,21 +355,15 @@
                                                         <li>
                                                             <span class="megamenu-title">Shop Pages</span>
                                                             <ul>
-                                                                <%# if(req.isAuthenticated){ %>
+                                                           
                                                                     <li><a href="/my-account">My Account</a></li>
                                                                     <li><a href="/cart">Shopping Cart</a></li>
                                                                 <li><a href="/shop-fullwidth">Shop</a></li>
     
                                                          
-                                                                <%#}else{  %>
-                                                              
-                                                                    <li><a href="/my-account">My Account</a></li>
+                                                                <
                                                                     <li><a href="/login-register">Login | Register</a></li>
-                                                                    <li><a href="/cart">Shopping Cart</a></li>
-                                                                <li><a href="/shop-fullwidth">Shop</a></li>
-    
-                                                             
-                                                                    <%# } %>
+                              
                                                          
                                                               
                                                             </ul>

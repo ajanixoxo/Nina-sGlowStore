@@ -185,7 +185,7 @@ app.get('/auth/google/callback',
 app.get('/', async (req, res) => {
   try {
     const products = await Product.find({})
-    res.render('index', { products: products  , req: req});
+    res.render('index', { products: products  , req: req, });
   }
   catch (err) {
     console.log(err);
@@ -406,6 +406,14 @@ app.post('/add-product', adminAuth, upload.single('productImage'), function (req
 // Middleware to set user and cart in the template context
 
 app.get('/shop-fullwidth', async (req, res) => {
+  if(req.isAuthenticated()) {
+    const userId = req.user._id
+    const user =   UserModel.find({ _id: userId })
+    const cartItems = user.carts || []
+    const products = await Product.find({});
+    res.render('shop-fullwidth', { products: products, cartItems:cartItems});
+ 
+   }
   try {
     const products = await Product.find({});
     res.render('shop-fullwidth', { products: products , req: req});
@@ -413,6 +421,7 @@ app.get('/shop-fullwidth', async (req, res) => {
     console.error(err);
     res.render('error', { error: err });
   }
+ 
 });
 
 app.post('/shop-fullwidth', (req, res) => {
@@ -437,13 +446,20 @@ app.get('/product/:productName', (req, res) => {
     });
 })
 app.get('/product', async (req, res) => {
+  if(req.isAuthenticated()) {
+    const userId = req.user._id
+    const user =   UserModel.find({ _id: userId })
+    const cartItems = user.carts || []
+    const products = await Product.find({});
+    res.render('shop-fullwidth', { products: products, cartItems:cartItems});
+ 
+   }
   try {
     const products = await Product.find({});
-    res.render('shop-fullwidth', { products: products, req: req });
-
+    res.render('shop-fullwidth', { products: products , req: req});
   } catch (err) {
     console.error(err);
-    res.render('error-404', { error: err });
+    res.render('error', { error: err });
   }
 })
 app.post('/product', (req, res) => {
@@ -452,7 +468,7 @@ app.post('/product', (req, res) => {
     product_id: req.body.productId,
     product_price: req.body.productPrice,
     product_img: req.body.productImg,
-    product_sales: req.body.productSales,
+    product_sales: req.body.productSales || false,
   };
 
 
