@@ -18,6 +18,8 @@ const flash = require('express-flash');
 const { functions } = require('lodash');
 const Sequelize = require('sequelize');
 const { Op } = require('sequelize');
+const bcrypt = require('bcrypt');
+
 
 app.use(flash());
 
@@ -52,8 +54,8 @@ const userSchema = new mongoose.Schema({
       product_id: String,
       product_price: Number,
       product_img: String,
-      product_sales:Boolean,
-      product_quantity:Number,
+      product_sales: Boolean,
+      product_quantity: Number,
     }
   ],
   phoneNo: Number,
@@ -103,7 +105,7 @@ const productSchema = new mongoose.Schema({
       required: true,
     },
   },
-  sales:Boolean,
+  sales: Boolean,
 
   // You can add more fields based on your requirements
 });
@@ -185,7 +187,7 @@ app.get('/auth/google/callback',
 app.get('/', async (req, res) => {
   try {
     const products = await Product.find({})
-    res.render('index', { products: products  , req: req, });
+    res.render('index', { products: products, req: req, });
   }
   catch (err) {
     console.log(err);
@@ -197,7 +199,12 @@ app.get('/', async (req, res) => {
 
 
 app.get('/login-register', (req, res, next) => {
-  res.render('login-register', { user: req.user, message: req.flash('error') , req: req})
+  if(req.isAuthenticated){
+    res.redirect('/my-account')
+  }else{
+    res.render('login-register', { user: req.user, message: req.flash('error'), req: req })
+  }
+  
 })
 
 app.post('/login-register', (req, res, next) => {
@@ -224,7 +231,12 @@ app.post('/login-register', (req, res, next) => {
 
 
 app.get('/login', (req, res) => {
-  res.render('login-register');
+  if(req.isAuthenticated){
+    res.redirect('/my-account')
+  }else{
+    res.render('login-register');
+  }
+  
 })
 app.post('/login', (req, res) => {
   const user = new UserModel({
@@ -260,7 +272,7 @@ app.use((req, res, next) => {
 
 
 
-app.get('/my-account', session({ secret: 'secret wa niyen oo', resave: true, saveUninitialized: true }), ensureAuthenticatedUser, async(req, res) => {
+app.get('/my-account', session({ secret: 'secret wa niyen oo', resave: true, saveUninitialized: true }), ensureAuthenticatedUser, async (req, res) => {
   // Check if there is a username passed in the query parameters
   const username = req.query.username || (req.isAuthenticated() ? req.user.username : null);
   try {
@@ -280,7 +292,7 @@ app.get('/my-account', session({ secret: 'secret wa niyen oo', resave: true, sav
         })
         return price
       }
-      res.render("my-account", { cartItems: cartItems, total: total, user_details: user_details, username: username, req: req  })
+      res.render("my-account", { cartItems: cartItems, total: total, user_details: user_details, username: username, req: req , user:user})
     } else {
       res.send("Login First")
     }
@@ -296,9 +308,9 @@ app.post('/my-account', () => {
 
 })
 app.get('/billing-details', () => {
-  res.redirect('/my-account', {req: req})
+  res.redirect('/my-account', { req: req })
 })
-app.post('/billing-details', async(req, res) => {
+app.post('/billing-details', async (req, res) => {
   try {
     if (req.isAuthenticated()) {
       const userId = req.user._id;
@@ -326,7 +338,7 @@ app.post('/billing-details', async(req, res) => {
 
     } else {
       res.send("Login First")
-      
+
     }
 
   } catch (err) {
@@ -335,13 +347,56 @@ app.post('/billing-details', async(req, res) => {
   }
 })
 
-app.get('/change-user', async (req, res) =>{
-res.redirect('/my-account', {req: req})
+app.get('/change-user', async (req, res) => {
+  res.redirect('/my-account', { req: req })
 })
-app.post('/change-user', async (req, res) =>{
+app.post('/change-user', async (req, res) => {
+  try {
+    const { full_name, email, old_pass, new_pass, new_pass_conf } = req.body;
 
-})
+    const userId = req.user_id;
+    const user = await UserModel.findById(userId);
 
+    if (user) {
+      // Check if the old password matches the stored hash
+      const isPasswordValid = await bcrypt.compare(old_pass, user.password);
+
+      if (isPasswordValid) {
+        // Update only if values are provided
+        if (full_name) {
+          user.name = full_name;
+        }
+
+        if (email) {
+          user.username = email;
+        }
+
+        // Update the password only if a new password is provided
+        if (new_pass) {
+          // Hash and salt the new password
+          const saltRounds = 10;
+          const hashedPassword = await bcrypt.hash(new_pass, saltRounds);
+          user.password = hashedPassword;
+        }
+
+        // Save the updated user
+        await user.save();
+
+        res.redirect('/my-account');
+      } else {
+        // Handle case where old password is incorrect
+        res.status(400).send('Invalid old password');
+      }
+    } else {
+      // Handle case where the user is not found
+      res.status(404).send('User not found');
+    }
+  } catch (error) {
+    // Handle errors appropriately
+    console.error(error);
+    res.status(500).send('Internal Server Error');
+  }
+});
 
 
 
@@ -349,7 +404,7 @@ let admin = process.env.ADMIN_NAME
 let admin_password = process.env.ADMIN_PASSWORD
 // Middleware for administrators
 const adminAuth = basicAuth({
-  users: { admin: admin_password }, // Replace with your actual admin credentials
+  users: { "admin": "admin_password" }, // Replace with your actual admin credentials
   challenge: true,
   unauthorizedResponse: 'Unauthorized Access!'
 });
@@ -359,8 +414,16 @@ const adminAuth = basicAuth({
 app.get('/admin', session({
   secret: 'secret wa niyen oo', resave: true,
   saveUninitialized: true
-}), adminAuth, (req, res) => {
-  res.render('admin');
+}), adminAuth, async (req, res) => {
+  try {
+    const products = await Product.find({});
+    const users = await UserModel.find({});
+    res.render('admin', { products: products, users, });
+  } catch (err) {
+    console.error(err);
+    res.render('error-404', { error: err });
+  }
+
 });
 
 
@@ -373,7 +436,7 @@ app.get('/product-add', adminAuth, (req, res) => {
   res.render('product-add')
 })
 app.post('/add-product', adminAuth, upload.single('productImage'), function (req, res, next) {
-  const { product_name, desc, price, quantity, onSale} = req.body;
+  const { product_name, desc, price, quantity, onSale } = req.body;
 
   const productImage = {
     data: req.file.buffer,
@@ -406,22 +469,23 @@ app.post('/add-product', adminAuth, upload.single('productImage'), function (req
 // Middleware to set user and cart in the template context
 
 app.get('/shop-fullwidth', async (req, res) => {
-  if(req.isAuthenticated()) {
+  if (req.isAuthenticated()) {
     const userId = req.user._id
-    const user =   UserModel.find({ _id: userId })
+    const user = UserModel.find({ _id: userId })
     const cartItems = user.carts || []
     const products = await Product.find({});
-    res.render('shop-fullwidth', { products: products, cartItems:cartItems});
- 
-   }
+    res.render('shop-fullwidth', { products: products, cartItems: cartItems });
+
+  }
   try {
+    const cartItems = []
     const products = await Product.find({});
-    res.render('shop-fullwidth', { products: products , req: req});
+    res.render('shop-fullwidth', { products: products, req: req, cartItems: cartItems  });
   } catch (err) {
     console.error(err);
     res.render('error', { error: err });
   }
- 
+
 });
 
 app.post('/shop-fullwidth', (req, res) => {
@@ -438,7 +502,7 @@ app.get('/product/:productName', (req, res) => {
       if (!foundProduct) {
         res.render('error-404')
       } else {
-        res.render("single-product", { product: foundProduct , req: req});
+        res.render("single-product", { product: foundProduct, req: req });
       }
     }).catch(err => {
       console.log(err);
@@ -446,21 +510,24 @@ app.get('/product/:productName', (req, res) => {
     });
 })
 app.get('/product', async (req, res) => {
-  if(req.isAuthenticated()) {
+  if (req.isAuthenticated()) {
     const userId = req.user._id
-    const user =   UserModel.find({ _id: userId })
+    const user = UserModel.find({ _id: userId })
     const cartItems = user.carts || []
     const products = await Product.find({});
-    res.render('shop-fullwidth', { products: products, cartItems:cartItems});
- 
-   }
-  try {
-    const products = await Product.find({});
-    res.render('shop-fullwidth', { products: products , req: req});
-  } catch (err) {
-    console.error(err);
-    res.render('error', { error: err });
+    res.render('shop-fullwidth', { products: products, cartItems: cartItems });
+
+  }else{
+    try {
+      const cartItems = []
+      const products = await Product.find({});
+      res.render('shop-fullwidth', { products: products, cartItems: cartItems  });
+    } catch (err) {
+      console.error(err);
+      res.render('error', { error: err });
+    }
   }
+
 })
 app.post('/product', (req, res) => {
   const newCart = {
@@ -522,26 +589,26 @@ app.get('/cart', async (req, res) => {
       }
       const cartItems = user.carts || []
       const salesItems = (sales_price) => {
-       cartItems.map(item => {
-          if(item.product_sales)
-            sales_price += item .product_price * 0.75
-         
+        cartItems.map(item => {
+          if (item.product_sales)
+            sales_price += item.product_price * 0.75
+
         })
         return sales_price
       }
-    
-      
+
+
       const total = (price) => {
         cartItems.map(item => {
-          if(!item.product_sales)
-          price += item.product_price + salesItems(0)
-          
+          if (!item.product_sales)
+            price += item.product_price + salesItems(0)
+
         })
-       
+
         return price
       }
       console.log(total(0))
-      res.render("cart", { cartItems: cartItems, total: total , req: req})
+      res.render("cart", { cartItems: cartItems, total: total, req: req })
     } else {
       res.render("cart2")
     }
@@ -583,7 +650,7 @@ app.get('/checkout', async (req, res) => {
       if (req.isAuthenticated()) {
         const userId = req.user._id;
         const user = await UserModel.findById(userId);
-         
+
         if (!user) {
           console.log("User not found")
           return res.status(404).send("Please login or register")
@@ -592,33 +659,33 @@ app.get('/checkout', async (req, res) => {
           Full_Name: req.user.name,
           Email: req.user.username,
           PhoneNo: req.user.phoneNo,
-          City:"",
-          State:"",
-          Address:"",
-          country:"",
+          City: "",
+          State: "",
+          Address: "",
+          country: "",
 
         }
         const cartItems = user.carts || []
         const salesItems = (sales_price) => {
-         cartItems.map(item => {
-            if(item.product_sales)
-              sales_price += item .product_price * 0.75
-           
+          cartItems.map(item => {
+            if (item.product_sales)
+              sales_price += item.product_price * 0.75
+
           })
           return sales_price
         }
-      
-        
+
+
         const total = (price) => {
           cartItems.map(item => {
-            if(!item.product_sales)
-            price += item.product_price + salesItems(0)
-            
+            if (!item.product_sales)
+              price += item.product_price + salesItems(0)
+
           })
-         
+
           return price
         }
-        res.render("checkout", { cartItems: cartItems, total: total, user_details: user_details, user:user, req: req })
+        res.render("checkout", { cartItems: cartItems, total: total, user_details: user_details, user: user, req: req })
       } else {
         res.send("Login First")
       }
@@ -641,22 +708,22 @@ app.get('/checkout', async (req, res) => {
         const user_details = user.billingDetails
         const cartItems = user.carts || []
         const salesItems = (sales_price) => {
-         cartItems.map(item => {
-            if(item.product_sales)
-              sales_price += item .product_price * 0.75
-           
+          cartItems.map(item => {
+            if (item.product_sales)
+              sales_price += item.product_price * 0.75
+
           })
           return sales_price
         }
-      
-        
+
+
         const total = (price) => {
           cartItems.map(item => {
-            if(!item.product_sales)
-            price += item.product_price + salesItems(0)
-            
+            if (!item.product_sales)
+              price += item.product_price + salesItems(0)
+
           })
-         
+
           return price
         }
         res.render("checkout", { cartItems: cartItems, total: total, user_details: user_details, req: req })
@@ -714,7 +781,7 @@ app.get('/send-orders', async (req, res) => {
       if (req.isAuthenticated()) {
         const userId = req.user._id;
         const user = await UserModel.findById(userId);
-         
+
         if (!user) {
           console.log("User not found")
           return res.status(404).send("Please login or register")
@@ -723,33 +790,33 @@ app.get('/send-orders', async (req, res) => {
           Full_Name: req.user.name,
           Email: req.user.username,
           PhoneNo: req.user.phoneNo,
-          City:"",
-          State:"",
-          Address:"",
-          country:"",
+          City: "",
+          State: "",
+          Address: "",
+          country: "",
 
         }
         const cartItems = user.carts || []
         const salesItems = (sales_price) => {
-         cartItems.map(item => {
-            if(item.product_sales)
-              sales_price += item .product_price * 0.75
-           
+          cartItems.map(item => {
+            if (item.product_sales)
+              sales_price += item.product_price * 0.75
+
           })
           return sales_price
         }
-      
-        
+
+
         const total = (price) => {
           cartItems.map(item => {
-            if(!item.product_sales)
-            price += item.product_price + salesItems(0)
-            
+            if (!item.product_sales)
+              price += item.product_price + salesItems(0)
+
           })
-         
+
           return price
         }
-        res.render("send-orders", { cartItems: cartItems, total: total, user_details: user_details, user:user , req: req})
+        res.render("send-orders", { cartItems: cartItems, total: total, user_details: user_details, user: user, req: req })
       } else {
         res.send("Login First")
       }
@@ -772,22 +839,22 @@ app.get('/send-orders', async (req, res) => {
         const user_details = user.billingDetails
         const cartItems = user.carts || []
         const salesItems = (sales_price) => {
-         cartItems.map(item => {
-            if(item.product_sales)
-              sales_price += item .product_price * 0.75
-           
+          cartItems.map(item => {
+            if (item.product_sales)
+              sales_price += item.product_price * 0.75
+
           })
           return sales_price
         }
-      
-        
+
+
         const total = (price) => {
           cartItems.map(item => {
-            if(!item.product_sales)
-            price += item.product_price + salesItems(0)
-            
+            if (!item.product_sales)
+              price += item.product_price + salesItems(0)
+
           })
-         
+
           return price
         }
         res.render("send-orders", { cartItems: cartItems, total: total, user_details: user_details, req: req })
@@ -806,7 +873,7 @@ app.get('/send-orders', async (req, res) => {
 app.get('/checkout-payment', async (req, res) => {
   res.redirect('/send-orders')
 })
-app.post('/checkout-payment', async(req, res) => {
+app.post('/checkout-payment', async (req, res) => {
   // Process the form submission and send the email
   const userId = req.user._id;
   console.log(userId);
@@ -891,10 +958,19 @@ app.post('/checkout-payment', async(req, res) => {
 
         } else {
           console.log('Email sent sucessfully to user');
+          // Update product quantities
+          const cartItems = user.carts || [];
+          for (const item of cartItems) {
+            const productId = item.product_id;
+            const quantityToReduce = 1;
+
+            // Update product quantity in the product model
+            await Product.updateOne({ _id: productId }, { $inc: { quantity: -quantityToReduce } });
+          }
           await UserModel.updateOne({ _id: userId }, { $set: { carts: [] } });
-           res.render('success')
-          
-          
+          res.render('success')
+
+
         }
       });
       const mailOptions = {
@@ -923,7 +999,7 @@ app.post('/checkout-payment', async(req, res) => {
 
 })
 
-app.get('/search', async(req, res) => {
+app.get('/search', async (req, res) => {
   const searchText = req.body.searchText;
   console.log(searchText)
   try {
@@ -931,15 +1007,15 @@ app.get('/search', async(req, res) => {
     const products = await Product.find({ name: { $regex: searchText, $options: 'i' } });
     console.log(products)
     // You can do something with the found products, e.g., send them as a response
-    res.render("search", {products:products});
+    res.render("search", { products: products });
   } catch (error) {
     // Handle errors, e.g., send an error response
     const products = []
-    res.render("search", {products:products});
+    res.render("search", { products: products });
 
   }
 })
-app.post('/search', async(req, res) => {
+app.post('/search', async (req, res) => {
   const searchText = req.body.searchText;
   console.log(searchText)
   try {
@@ -947,11 +1023,11 @@ app.post('/search', async(req, res) => {
     const products = await Product.find({ name: { $regex: searchText, $options: 'i' } });
     console.log(products)
     // You can do something with the found products, e.g., send them as a response
-    res.render("search", {products:products});
+    res.render("search", { products: products });
   } catch (error) {
     // Handle errors, e.g., send an error response
     const products = []
-    res.render("search", {products:products});
+    res.render("search", { products: products });
 
   }
 })
@@ -961,7 +1037,7 @@ app.get('/user-list', adminAuth, (req, res) => {
   UserModel.find()
     .then((users) => {
 
-      res.render('user-list', { users,  })
+      res.render('user-list', { users, })
     })
     .catch(err => {
       console.error(err);
@@ -1093,7 +1169,7 @@ app.get('/details-email', async (req, res) => {
 });
 
 app.get('/about-us', (req, res) => {
-res.render('about-us', {req: req})
+  res.render('about-us', { req: req })
 })
 app.post('/about-us', (req, res) => {
 
@@ -1104,7 +1180,7 @@ app.post('/about-us', (req, res) => {
 });
 
 app.get('/service', (req, res) => {
-res.render('our-services', {req: req})
+  res.render('our-services', { req: req })
 })
 
 app.post('/service', (req, res) => {
@@ -1112,7 +1188,7 @@ app.post('/service', (req, res) => {
 })
 
 app.get('/contact', (req, res) => {
-  res.render("contact-us", {req: req})
+  res.render("contact-us", { req: req })
 })
 app.post('/contact-us', (req, res) => {
 

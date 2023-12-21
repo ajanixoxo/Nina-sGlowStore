@@ -20090,7 +20090,7 @@ div.copied {
 }
 .navbar .sidebar-offcanvas-toggle:before,
 .navbar .sidebar-toggle:before {
-  content: "🔎";
+  content: "=";
   font-family: "Material Design Icons";
 }
 .navbar .navbar-toggler i {
