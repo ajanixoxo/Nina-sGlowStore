@@ -1194,8 +1194,17 @@ app.post('/contact-us', (req, res) => {
 
 })
 
-
-
+app.get('/logout', (req, res) => {
+  req.logout();
+  req.session.destroy();
+  res.redirect('/');
+});
+app.post('/logout', function(req, res, next){
+  req.logout(function(err) {
+    if (err) { return next(err); }
+    res.redirect('/');
+  });
+});
 
 app.get('/invoice', (req, res) => {
   res.render("invoice")
