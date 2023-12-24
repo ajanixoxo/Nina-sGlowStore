@@ -30,12 +30,23 @@ app.use(express.static("public"))
 
 
 
-mongoose.connect('mongodb://localhost:27017/SkinCareDB', { useUnifiedTopology: true })
+// mongoose.connect('mongodb://localhost:27017/SkinCareDB', { useUnifiedTopology: true })
+//   .then(() => {
+//     console.log('Connected to MongoDB');
+//     // Your server listening logic can be placed here
+//     app.listen(3500, () => {
+//       console.log('Server is running on port 3500');
+//     });
+//   })
+//   .catch((err) => {
+//     console.error('Error connecting to MongoDB:', err.message);
+//   });
+mongoose.connect('mongodb+srv://adeolu_admin:4akudQBdfrjCtkAc@atlascluster.d5eauqw.mongodb.net/SkinCareDB')
   .then(() => {
-    console.log('Connected to MongoDB');
+    console.log('Connected to MongoDB Cloud');
     // Your server listening logic can be placed here
     app.listen(3500, () => {
-      console.log('Server is running on port 3500');
+      console.log('Server is running on port 3500 cloud');
     });
   })
   .catch((err) => {
