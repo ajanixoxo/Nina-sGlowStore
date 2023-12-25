@@ -134,7 +134,7 @@ app.use(session({
   secret: 'secret wa niyen oo',
   resave: true,
   saveUninitialized: true,
-  store: MongoStore.create({ mongoUrl: 'mongodb://localhost:27017/SkinCareDB' }), // Adjust the URL accordingly
+  store: MongoStore.create({ mongoUrl: 'mongodb+srv://adeolu_admin:4akudQBdfrjCtkAc@atlascluster.d5eauqw.mongodb.net/SkinCareDB' }), // Adjust the URL accordingly
   cookie: {
     maxAge: 1000 * 60 * 60 * 24 * 7, // 1 week
   },
