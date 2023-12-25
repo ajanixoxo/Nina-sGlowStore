@@ -210,7 +210,7 @@ app.get('/', async (req, res) => {
 
 
 app.get('/login-register', (req, res, next) => {
-  if(req.isAuthenticated){
+  if(req.isAuthenticated()){
     res.redirect('/my-account')
   }else{
     res.render('login-register', { user: req.user, message: req.flash('error'), req: req })
@@ -242,7 +242,7 @@ app.post('/login-register', (req, res, next) => {
 
 
 app.get('/login', (req, res) => {
-  if(req.isAuthenticated){
+  if(req.isAuthenticated()){
     res.redirect('/my-account')
   }else{
     res.render('login-register');
@@ -285,9 +285,10 @@ app.use((req, res, next) => {
 
 app.get('/my-account', session({ secret: 'secret wa niyen oo', resave: true, saveUninitialized: true }), ensureAuthenticatedUser, async (req, res) => {
   // Check if there is a username passed in the query parameters
-  const username = req.query.username || (req.isAuthenticated() ? req.user.username : null);
+  const username = null
   try {
     if (req.isAuthenticated()) {
+      const username = req.query.username || (req.isAuthenticated() ? req.user.username : null);
       const userId = req.user._id;
       const user = await UserModel.findById(userId);
 
@@ -305,7 +306,7 @@ app.get('/my-account', session({ secret: 'secret wa niyen oo', resave: true, sav
       }
       res.render("my-account", { cartItems: cartItems, total: total, user_details: user_details, username: username, req: req , user:user})
     } else {
-      res.send("Login First")
+      res.redirect('/login-register')
     }
 
   } catch (err) {
