@@ -45,8 +45,8 @@ mongoose.connect('mongodb+srv://adeolu_admin:4akudQBdfrjCtkAc@atlascluster.d5eau
   .then(() => {
     console.log('Connected to MongoDB Cloud');
     // Your server listening logic can be placed here
-    app.listen(3500, () => {
-      console.log('Server is running on port 3500 cloud');
+    app.listen(process.env.PORT||4500, () => {
+      console.log('Server is running on port 4500 cloud');
     });
   })
   .catch((err) => {
