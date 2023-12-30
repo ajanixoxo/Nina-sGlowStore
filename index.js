@@ -134,6 +134,7 @@ app.use(session({
   secret: 'secret wa niyen oo',
   resave: true,
   saveUninitialized: true,
+  // store: MongoStore.create({ mongoUrl: 'mongodb://localhost:27017/SkinCareDB' }), // Adjust the URL accordingly
   store: MongoStore.create({ mongoUrl: 'mongodb+srv://adeolu_admin:4akudQBdfrjCtkAc@atlascluster.d5eauqw.mongodb.net/SkinCareDB' }), // Adjust the URL accordingly
   cookie: {
     maxAge: 1000 * 60 * 60 * 24 * 7, // 1 week
@@ -552,9 +553,10 @@ app.post('/product', (req, res) => {
 
 
 
-  const userId = req.user._id // Assuming you are using Passport and the user is authenticated
+ // Assuming you are using Passport and the user is authenticated
   console.log(newCart)
-  if (req.isAuthenticated()) {
+  if (req.isAuthenticated()) { 
+    const userId = req.user._id 
     UserModel.findOneAndUpdate(
       { _id: userId },
       { $push: { carts: newCart } },
@@ -622,7 +624,7 @@ app.get('/cart', async (req, res) => {
       console.log(total(0))
       res.render("cart", { cartItems: cartItems, total: total, req: req })
     } else {
-      res.render("cart2")
+      res.redirect('/login')
     }
 
   } catch (err) {
@@ -657,7 +659,7 @@ app.post('/remove-cart', async (req, res) => {
   }
 });
 app.get('/checkout', async (req, res) => {
-  if (req.user.billingDetails === null) {
+  console.log(req.user.billingDetails)
     try {
       if (req.isAuthenticated()) {
         const userId = req.user._id;
@@ -667,14 +669,15 @@ app.get('/checkout', async (req, res) => {
           console.log("User not found")
           return res.status(404).send("Please login or register")
         }
+        const details = user.billingDetails || {}
         const user_details = {
-          Full_Name: req.user.name,
-          Email: req.user.username,
-          PhoneNo: req.user.phoneNo,
-          City: "",
-          State: "",
-          Address: "",
-          country: "",
+          Full_Name: details.FullName || req.user.name,
+          Email: details.FullName || req.user.username,
+          PhoneNo: details.FullName || req.user.phoneNo,
+          City: details.City||"",
+          State:details.State||"",
+          Address: details.Address||"",
+          country:details.country|| "",
 
         }
         const cartItems = user.carts || []
@@ -699,55 +702,56 @@ app.get('/checkout', async (req, res) => {
         }
         res.render("checkout", { cartItems: cartItems, total: total, user_details: user_details, user: user, req: req })
       } else {
-        res.send("Login First")
+        res.redirect('/login')
+      
       }
 
     } catch (err) {
-      console.error("Error retrieving cart items:" + err)
+      console.error( err)
       res.status(500).send("Internal Server Error")
     }
-  }
-  else {
-    try {
-      if (req.isAuthenticated()) {
-        const userId = req.user._id;
-        const user = await UserModel.findById(userId);
+  
+  // else {
+  //   try {
+  //     if (req.isAuthenticated()) {
+  //       const userId = req.user._id;
+  //       const user = await UserModel.findById(userId);
 
-        if (!user) {
-          console.log("User not found")
-          return res.status(404).send("Please login or register")
-        }
-        const user_details = user.billingDetails
-        const cartItems = user.carts || []
-        const salesItems = (sales_price) => {
-          cartItems.map(item => {
-            if (item.product_sales)
-              sales_price += item.product_price * 0.75
+  //       if (!user) {
+  //         console.log("User not found")
+  //         return res.status(404).send("Please login or register")
+  //       }
+  //       const user_details = user.billingDetails
+  //       const cartItems = user.carts || []
+  //       const salesItems = (sales_price) => {
+  //         cartItems.map(item => {
+  //           if (item.product_sales)
+  //             sales_price += item.product_price * 0.75
 
-          })
-          return sales_price
-        }
+  //         })
+  //         return sales_price
+  //       }
 
 
-        const total = (price) => {
-          cartItems.map(item => {
-            if (!item.product_sales)
-              price += item.product_price + salesItems(0)
+  //       const total = (price) => {
+  //         cartItems.map(item => {
+  //           if (!item.product_sales)
+  //             price += item.product_price + salesItems(0)
 
-          })
+  //         })
 
-          return price
-        }
-        res.render("checkout", { cartItems: cartItems, total: total, user_details: user_details, req: req })
-      } else {
-        res.send("Login First")
-      }
+  //         return price
+  //       }
+  //       res.render("checkout", { cartItems: cartItems, total: total, user_details: user_details, req: req })
+  //     } else {
+  //       res.send("Login First")
+  //     }
 
-    } catch (err) {
-      console.error("Error retrieving cart items:" + err)
-      res.status(500).send("Internal Server Error")
-    }
-  }
+  //   } catch (err) {
+  //     console.error("Error retrieving cart items:" + err)
+  //     res.status(500).send("Internal Server Error")
+  //   }
+  // }
 
 
 })
@@ -764,17 +768,19 @@ app.post('/checkout', async (req, res) => {
         Full_Name: full_name,
         Address: address,
         City: city,
-        State: address,
+        State: state,
         Email: email,
         PhoneNo: phone_number,
       }
       user.billingDetails = billingDetails;
+      console.log(user.billingDetails);
+      console.log(billingDetails);
 
       // Save the updated user
       const cartItems = user.carts || []
       await user.save();
 
-      res.render("checkout", { cartItems: cartItems, total: total, user_details: user_details, req: req })
+      res.redirect('/checkout')
 
 
 
@@ -783,13 +789,13 @@ app.post('/checkout', async (req, res) => {
     }
 
   } catch (err) {
-    console.error("Error retrieving cart items:" + err)
+    console.error(err)
     res.status(500).send("Internal Server Error")
   }
 })
 app.get('/send-orders', async (req, res) => {
-  if (req.user.billingDetails === null) {
-    try {
+ if(req.isAuthenticated){
+     try {
       if (req.isAuthenticated()) {
         const userId = req.user._id;
         const user = await UserModel.findById(userId);
@@ -799,13 +805,13 @@ app.get('/send-orders', async (req, res) => {
           return res.status(404).send("Please login or register")
         }
         const user_details = {
-          Full_Name: req.user.name,
-          Email: req.user.username,
-          PhoneNo: req.user.phoneNo,
-          City: "",
-          State: "",
-          Address: "",
-          country: "",
+          Full_Name: details.FullName || req.user.name,
+          Email: details.FullName || req.user.username,
+          PhoneNo: details.FullName || req.user.phoneNo,
+          City: details.City||"",
+          State:details.State||"",
+          Address: details.Address||"",
+          country:details.country|| "",
 
         }
         const cartItems = user.carts || []
@@ -834,51 +840,55 @@ app.get('/send-orders', async (req, res) => {
       }
 
     } catch (err) {
-      console.error("Error retrieving cart items:" + err)
+      console.error( + err)
       res.status(500).send("Internal Server Error")
     }
-  }
-  else {
-    try {
-      if (req.isAuthenticated()) {
-        const userId = req.user._id;
-        const user = await UserModel.findById(userId);
+ 
+ }
+ else{
+  res.redirect("/login")
+ }
+  // else {
+  //   try {
+  //     if (req.isAuthenticated()) {
+  //       const userId = req.user._id;
+  //       const user = await UserModel.findById(userId);
 
-        if (!user) {
-          console.log("User not found")
-          return res.status(404).send("Please login or register")
-        }
-        const user_details = user.billingDetails
-        const cartItems = user.carts || []
-        const salesItems = (sales_price) => {
-          cartItems.map(item => {
-            if (item.product_sales)
-              sales_price += item.product_price * 0.75
+  //       if (!user) {
+  //         console.log("User not found")
+  //         return res.status(404).send("Please login or register")
+  //       }
+  //       const user_details = user.billingDetails
+  //       const cartItems = user.carts || []
+  //       const salesItems = (sales_price) => {
+  //         cartItems.map(item => {
+  //           if (item.product_sales)
+  //             sales_price += item.product_price * 0.75
 
-          })
-          return sales_price
-        }
+  //         })
+  //         return sales_price
+  //       }
 
 
-        const total = (price) => {
-          cartItems.map(item => {
-            if (!item.product_sales)
-              price += item.product_price + salesItems(0)
+  //       const total = (price) => {
+  //         cartItems.map(item => {
+  //           if (!item.product_sales)
+  //             price += item.product_price + salesItems(0)
 
-          })
+  //         })
 
-          return price
-        }
-        res.render("send-orders", { cartItems: cartItems, total: total, user_details: user_details, req: req })
-      } else {
-        res.send("Login First")
-      }
+  //         return price
+  //       }
+  //       res.render("send-orders", { cartItems: cartItems, total: total, user_details: user_details, req: req })
+  //     } else {
+  //       res.send("Login First")
+  //     }
 
-    } catch (err) {
-      console.error("Error retrieving cart items:" + err)
-      res.status(500).send("Internal Server Error")
-    }
-  }
+  //   } catch (err) {
+  //     console.error("Error retrieving cart items:" + err)
+  //     res.status(500).send("Internal Server Error")
+  //   }
+  // }
 
 
 })
@@ -1199,7 +1209,7 @@ app.post('/service', (req, res) => {
 
 })
 
-app.get('/contact', (req, res) => {
+app.get('/contact-us', (req, res) => {
   res.render("contact-us", { req: req })
 })
 app.post('/contact-us', (req, res) => {
@@ -1207,15 +1217,16 @@ app.post('/contact-us', (req, res) => {
 })
 
 app.get('/logout', (req, res) => {
-  req.logout();
   req.session.destroy();
   res.redirect('/');
 });
-app.post('/logout', function(req, res, next){
-  req.logout(function(err) {
-    if (err) { return next(err); }
-    res.redirect('/');
-  });
+app.post('/logout', function(req, res){
+  req.logout().then(() => res.redirect('/'))
+   .catch(err => {
+    console.log(err);
+    res.send(err)
+   })
+
 });
 
 app.get('/invoice', (req, res) => {

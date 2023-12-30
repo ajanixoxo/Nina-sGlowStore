@@ -170,8 +170,7 @@
                                       <% if(cartItems.length > 0) { %>
                                         <% cartItems.map(item => { %>
                                           <tr class="cart_item">
-                                            <td class="cart-product-name"><%= item.product_name %><strong class="product-quantity">
-                                              × 3</strong></td>
+                                            <td class="cart-product-name"><%= item.product_name %></td>
                                             <td class="cart-product-total"><span class="amount">₦<%= item.product_price %></span></td>
                                           </tr>
                                         <% }) %>

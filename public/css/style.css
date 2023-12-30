@@ -6605,7 +6605,7 @@ i, input[type=checkbox] + label:before, input[type=checkbox] + label:after {
   position: relative;
 }
 .breadcrumb-area.breadcrumb-bg-2 {
-  background-image: url("../images/breadcrumb/2.jpg");
+  background-image: url("../images/headerr.jpg");
   height: 400px;
   text-align: center;
 }
@@ -6667,7 +6667,7 @@ i, input[type=checkbox] + label:before, input[type=checkbox] + label:after {
   color: #dd6b33;
 }
 .breadcrumb-area.breadcrumb-bg-4 {
-  background-image: url("../images/breadcrumb/4.jpg");
+  background-image: url("../images/face.jpg");
   height: 400px;
   text-align: center;
 }
@@ -11503,7 +11503,7 @@ i, input[type=checkbox] + label:before, input[type=checkbox] + label:after {
   .about-us_area .about-us_img .inner-img {
     margin-top: -80px;
     margin-bottom: 40px;
-    margin-left: -40px;
+    margin-left: -1000px;
     padding-right: 40px;
   }
 }
@@ -12926,7 +12926,7 @@ i, input[type=checkbox] + label:before, input[type=checkbox] + label:after {
     font-size: 15px;
   }
   .ceo{
-    margin-right: 0;
+    margin-right: -300px;
   }
 }
 .different-address h3 input {
@@ -13218,12 +13218,15 @@ i, input[type=checkbox] + label:before, input[type=checkbox] + label:after {
   font-size: 30px;
 }
 .ceo{
-  margin-left: 34%;
+  margin-left: 30%;
 }
 @media (max-width: 767px) {
 
   .table-content table td.yena-product-thumbnail img {
     width: 100%;
     height: 100%;
+  }
+  .ceo{
+    margin-left: 0%;
   }
 }
