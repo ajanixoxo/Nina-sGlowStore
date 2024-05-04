@@ -19,8 +19,8 @@ const { functions } = require('lodash');
 const Sequelize = require('sequelize');
 const { Op } = require('sequelize');
 const bcrypt = require('bcrypt');
-
-
+// const cors = require('cors');
+// app.use(cors())
 app.use(flash());
 
 app.set('view engine', 'ejs');
@@ -30,7 +30,7 @@ app.use(express.static("public"))
 
 
 
-// mongoose.connect('mongodb://localhost:27017/SkinCareDB', { useUnifiedTopology: true })
+// mongoose.connect('mongodb://localhost:27017/SkinCareDB' )
 //   .then(() => {
 //     console.log('Connected to MongoDB');
 //     // Your server listening logic can be placed here
@@ -135,7 +135,7 @@ app.use(session({
   resave: true,
   saveUninitialized: true,
   // store: MongoStore.create({ mongoUrl: 'mongodb://localhost:27017/SkinCareDB' }), // Adjust the URL accordingly
-  store: MongoStore.create({ mongoUrl: 'mongodb+srv://adeolu_admin:4akudQBdfrjCtkAc@atlascluster.d5eauqw.mongodb.net/SkinCareDB' }), // Adjust the URL accordingly
+    store: MongoStore.create({ mongoUrl: 'mongodb+srv://adeolu_admin:4akudQBdfrjCtkAc@atlascluster.d5eauqw.mongodb.net/SkinCareDB' }), // Adjust the URL accordingly
   cookie: {
     maxAge: 1000 * 60 * 60 * 24 * 7, // 1 week
   },
@@ -143,10 +143,11 @@ app.use(session({
 
 app.use(passport.initialize())
 app.use(passport.session())
-const ProductsModel = mongoose.model("ProductsModel", productSchema)
+
 const UserModel = mongoose.model("UserModel", userSchema);
 const AdminModel = mongoose.model("AdminModel", adminSchema);
 passport.use(UserModel.createStrategy())
+const Product = mongoose.model("Product", productSchema);
 
 
 passport.use(new GoogleStrategy({
@@ -160,7 +161,8 @@ passport.use(new GoogleStrategy({
     });
   }
 ));
-const Product = mongoose.model("Product", productSchema);
+
+
 passport.serializeUser(function (user, done) {
   done(null, user.id)
 });
@@ -223,7 +225,7 @@ app.post('/login-register', (req, res, next) => {
   const { First_Name, PhoneNo, username, password } = req.body;
 
   console.log('Received registration request:', { First_Name, username });
-
+  
   const newUser = new UserModel({ username, name: First_Name, phoneNo: PhoneNo });
 
   UserModel.register(newUser, password, (err, user) => {
@@ -235,7 +237,7 @@ app.post('/login-register', (req, res, next) => {
     passport.authenticate('local')(req, res, () => {
       console.log('User authenticated and logged in successfully.');
       // Redirect to the desired page after successful authentication
-      res.redirect('/cart');
+      res.redirect('/my-account');
     });
   });
 });
@@ -255,12 +257,19 @@ app.post('/login', (req, res) => {
     username: req.body.username,
     password: req.body.password
   })
+  console.log(user)
   req.login(user, (err) => {
     if (err) {
       console.log(err)
     } else {
       let username = req.user.username
       passport.authenticate("local")(req, res, () => {
+
+        console.log('Cookies:', req.headers.cookie);
+        console.log('Headers Sent:', res.headersSent);
+        console.log('Cookies Set in Browser:', req.session.cookie);
+        // res.send({ message: 'Authentication successful', redirect: '/account' });
+        
         res.redirect('/my-account');
       })
     }
@@ -269,10 +278,13 @@ app.post('/login', (req, res) => {
 
 // Middleware for regular users
 const ensureAuthenticatedUser = (req, res, next) => {
+  console.log(req.session)
   if (req.isAuthenticated() && req.user instanceof UserModel) {
+    // console.log('Cookies:', req.headers.cookie);
     return next();
   }
   res.redirect('/login-register');
+  // res.send({message:'/login-register'});
 };
 // Middleware to set user in the template context
 app.use((req, res, next) => {
@@ -289,6 +301,7 @@ app.get('/my-account', session({ secret: 'secret wa niyen oo', resave: true, sav
   const username = null
   try {
     if (req.isAuthenticated()) {
+     
       const username = req.query.username || (req.isAuthenticated() ? req.user.username : null);
       const userId = req.user._id;
       const user = await UserModel.findById(userId);
@@ -300,12 +313,15 @@ app.get('/my-account', session({ secret: 'secret wa niyen oo', resave: true, sav
       const user_details = user.billingDetails
       const cartItems = user.carts || []
       const total = (price) => {
-        cartItems.map(item => {
+        cartItems.map(item => { 
           price += item.product_price
         })
         return price
       }
+      // console.log('Cookies:', req.headers.cookie);
       res.render("my-account", { cartItems: cartItems, total: total, user_details: user_details, username: username, req: req , user:user})
+      // res.send({ cartItems, total, user_details, username, req, user })
+
     } else {
       res.redirect('/login-register')
     }
@@ -840,7 +856,8 @@ app.get('/send-orders', async (req, res) => {
       }
 
     } catch (err) {
-      console.error( + err)
+      console.error( err)
+      console.log(err)
       res.status(500).send("Internal Server Error")
     }
  
