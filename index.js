@@ -122,6 +122,7 @@ const productSchema = new mongoose.Schema({
 });
 productSchema.index({ name: 'text', description: 'text' });
 // Multer setup
+
 const storage = multer.memoryStorage(); // Store files in memory
 const upload = multer({ storage: storage }); // Set file size limit
 
@@ -209,7 +210,6 @@ app.get('/', async (req, res) => {
   }
 
 })
-
 
 
 app.get('/login-register', (req, res, next) => {
