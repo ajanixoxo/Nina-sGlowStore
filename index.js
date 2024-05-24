@@ -154,7 +154,8 @@ const Product = mongoose.model("Product", productSchema);
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  callbackURL: "http://localhost:3500/auth/google/callback"
+  // callbackURL: "http://localhost:3500/auth/google/callback"
+  callbackURL: "https://nina-sglowstore.onrender.com/auth/google/callback"
 },
   function (accessToken, refreshToken, profile, cb) {
     UserModel.findOrCreate({ googleId: profile.id }, function (err, user) {
