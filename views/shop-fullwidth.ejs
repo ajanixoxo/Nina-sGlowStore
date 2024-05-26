@@ -36,14 +36,14 @@
                                 <div class="product-item">
                                     <div class="single-product">
                                         <div class="product-img">
-                                      
+                                       <% console.log(product.url) %>
                                         
                                             <a href="/product/<%= product.name %>">
                                               <% if (product.quantity == 0) {%>
-                                              <img class="primary-img" src="/images/products/<%= product.image.name%>" alt="<%= product.image.name %>">
+                                              <img class="primary-img" src="<%= product.image.url%>" alt="<%= product.image.name %>">
                                                <p>Out of stock</p>
                                               <% } else{%>
-                                                <img class="primary-img" src="/images/products/<%= product.image.name%>" alt="<%= product.image.name %>">
+                                                <img class="primary-img" src="<%= product.image.url%>" alt="<%= product.image.name %>">
                                                 <% } %>
                                             </a>
                                             <div class="add-actions">

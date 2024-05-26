@@ -5,6 +5,7 @@ const passportLocalMongoose = require("passport-local-mongoose")
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const findOrCreate = require("mongoose-findorcreate")
 const basicAuth = require('express-basic-auth');
+const cloudinary = require('cloudinary').v2;
 const app = express();
 const ejs = require("ejs")
 const bodyParser = require("body-parser");
@@ -45,7 +46,7 @@ mongoose.connect('mongodb+srv://adeolu_admin:4akudQBdfrjCtkAc@atlascluster.d5eau
   .then(() => {
     console.log('Connected to MongoDB Cloud');
     // Your server listening logic can be placed here
-    app.listen(process.env.PORT||4500, () => {
+    app.listen(process.env.PORT || 4500, () => {
       console.log('Server is running on port 4500 cloud');
     });
   })
@@ -115,6 +116,11 @@ const productSchema = new mongoose.Schema({
       type: String,
       required: true,
     },
+    url: {
+      type: String,
+      required: true,
+    }
+    ,
   },
   sales: Boolean,
 
@@ -126,6 +132,12 @@ productSchema.index({ name: 'text', description: 'text' });
 const storage = multer.memoryStorage(); // Store files in memory
 const upload = multer({ storage: storage }); // Set file size limit
 
+cloudinary.config({
+  cloud_name: 'dzi1gevyw',
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+  secure: true,
+});
 userSchema.plugin(passportLocalMongoose, { usernameUnique: false })
 userSchema.plugin(findOrCreate)
 
@@ -136,7 +148,7 @@ app.use(session({
   resave: true,
   saveUninitialized: true,
   // store: MongoStore.create({ mongoUrl: 'mongodb://localhost:27017/SkinCareDB' }), // Adjust the URL accordingly
-    store: MongoStore.create({ mongoUrl: 'mongodb+srv://adeolu_admin:4akudQBdfrjCtkAc@atlascluster.d5eauqw.mongodb.net/SkinCareDB' }), // Adjust the URL accordingly
+  store: MongoStore.create({ mongoUrl: 'mongodb+srv://adeolu_admin:4akudQBdfrjCtkAc@atlascluster.d5eauqw.mongodb.net/SkinCareDB' }), // Adjust the URL accordingly
   cookie: {
     maxAge: 1000 * 60 * 60 * 24 * 7, // 1 week
   },
@@ -214,19 +226,19 @@ app.get('/', async (req, res) => {
 
 
 app.get('/login-register', (req, res, next) => {
-  if(req.isAuthenticated()){
+  if (req.isAuthenticated()) {
     res.redirect('/my-account')
-  }else{
+  } else {
     res.render('login-register', { user: req.user, message: req.flash('error'), req: req })
   }
-  
+
 })
 
 app.post('/login-register', (req, res, next) => {
   const { First_Name, PhoneNo, username, password } = req.body;
 
   console.log('Received registration request:', { First_Name, username });
-  
+
   const newUser = new UserModel({ username, name: First_Name, phoneNo: PhoneNo });
 
   UserModel.register(newUser, password, (err, user) => {
@@ -246,12 +258,12 @@ app.post('/login-register', (req, res, next) => {
 
 
 app.get('/login', (req, res) => {
-  if(req.isAuthenticated()){
+  if (req.isAuthenticated()) {
     res.redirect('/my-account')
-  }else{
+  } else {
     res.render('login-register');
   }
-  
+
 })
 app.post('/login', (req, res) => {
   const user = new UserModel({
@@ -270,7 +282,7 @@ app.post('/login', (req, res) => {
         console.log('Headers Sent:', res.headersSent);
         console.log('Cookies Set in Browser:', req.session.cookie);
         // res.send({ message: 'Authentication successful', redirect: '/account' });
-        
+
         res.redirect('/my-account');
       })
     }
@@ -302,7 +314,7 @@ app.get('/my-account', session({ secret: 'secret wa niyen oo', resave: true, sav
   const username = null
   try {
     if (req.isAuthenticated()) {
-     
+
       const username = req.query.username || (req.isAuthenticated() ? req.user.username : null);
       const userId = req.user._id;
       const user = await UserModel.findById(userId);
@@ -314,13 +326,13 @@ app.get('/my-account', session({ secret: 'secret wa niyen oo', resave: true, sav
       const user_details = user.billingDetails
       const cartItems = user.carts || []
       const total = (price) => {
-        cartItems.map(item => { 
+        cartItems.map(item => {
           price += item.product_price
         })
         return price
       }
       // console.log('Cookies:', req.headers.cookie);
-      res.render("my-account", { cartItems: cartItems, total: total, user_details: user_details, username: username, req: req , user:user})
+      res.render("my-account", { cartItems: cartItems, total: total, user_details: user_details, username: username, req: req, user: user })
       // res.send({ cartItems, total, user_details, username, req, user })
 
     } else {
@@ -465,35 +477,59 @@ app.post("/admin", (req, res) => {
 app.get('/product-add', adminAuth, (req, res) => {
   res.render('product-add')
 })
-app.post('/add-product', adminAuth, upload.single('productImage'), function (req, res, next) {
-  const { product_name, desc, price, quantity, onSale } = req.body;
 
-  const productImage = {
-    data: req.file.buffer,
-    contentType: req.file.mimetype,
-    name: req.file.originalname
-  };
-  // Create a new product
-  const newProduct = {
-    name: product_name,
-    description: desc,
-    price: price,
-    quantity: quantity,
-    image: productImage,
-    sales: onSale === 'on',
-  };
+app.post('/add-product', adminAuth, upload.single('productImage'), async (req, res, next) => {
+  try {
+    const { product_name, desc, price, quantity, onSale } = req.body;
 
-  const Product = mongoose.model("Product", productSchema);
-  const product = new Product(newProduct)
-  product.save()
-    .then(() => {
-      console.log("saved")
-      res.redirect('/product-list')
+    // Upload image to Cloudinary
+    const result = await cloudinary.uploader.upload_stream({
+      resource_type: 'image',
+      folder: 'ninaimg', // Optional: specify a folder in Cloudinary
+    }, (error, result) => {
+      if (error) {
+        console.error('Error uploading to Cloudinary:', error);
+        return res.status(500).send('Cloudinary upload failed.');
+      }
+
+      const productImage = {
+        data: req.file.buffer,
+        contentType: req.file.mimetype,
+        name: req.file.originalname,
+        url: result.secure_url,
+
+      };
+      // Create a new product
+      const newProduct = {
+        name: product_name,
+        description: desc,
+        price: price,
+        quantity: quantity,
+        image: productImage,
+        sales: onSale === 'on',
+      };
+
+
+
+      const product = new Product(newProduct)
+      product.save()
+        .then(() => {
+          console.log("saved")
+          res.redirect('/product-list')
+        })
+        .catch((err) => {
+          console.log(err)
+          res.status(500).send("Internal Server Error: " + err.message)
+        })
     })
-    .catch((err) => {
-      console.log(err)
-      res.status(500).send("Internal Server Error: " + err.message)
-    })
+
+    result.end(req.file.buffer);
+
+  } catch (error) {
+    console.error('Error in add-product route:', error);
+    res.status(500).send('Internal Server Error: ' + error.message);
+  }
+
 
 });
 // Middleware to set user and cart in the template context
@@ -510,7 +546,7 @@ app.get('/shop-fullwidth', async (req, res) => {
   try {
     const cartItems = []
     const products = await Product.find({});
-    res.render('shop-fullwidth', { products: products, req: req, cartItems: cartItems  });
+    res.render('shop-fullwidth', { products: products, req: req, cartItems: cartItems });
   } catch (err) {
     console.error(err);
     res.render('error', { error: err });
@@ -547,11 +583,11 @@ app.get('/product', async (req, res) => {
     const products = await Product.find({});
     res.render('shop-fullwidth', { products: products, cartItems: cartItems });
 
-  }else{
+  } else {
     try {
       const cartItems = []
       const products = await Product.find({});
-      res.render('shop-fullwidth', { products: products, cartItems: cartItems  });
+      res.render('shop-fullwidth', { products: products, cartItems: cartItems });
     } catch (err) {
       console.error(err);
       res.render('error', { error: err });
@@ -570,10 +606,10 @@ app.post('/product', (req, res) => {
 
 
 
- // Assuming you are using Passport and the user is authenticated
+  // Assuming you are using Passport and the user is authenticated
   console.log(newCart)
-  if (req.isAuthenticated()) { 
-    const userId = req.user._id 
+  if (req.isAuthenticated()) {
+    const userId = req.user._id
     UserModel.findOneAndUpdate(
       { _id: userId },
       { $push: { carts: newCart } },
@@ -677,57 +713,57 @@ app.post('/remove-cart', async (req, res) => {
 });
 app.get('/checkout', async (req, res) => {
   console.log(req.user.billingDetails)
-    try {
-      if (req.isAuthenticated()) {
-        const userId = req.user._id;
-        const user = await UserModel.findById(userId);
+  try {
+    if (req.isAuthenticated()) {
+      const userId = req.user._id;
+      const user = await UserModel.findById(userId);
 
-        if (!user) {
-          console.log("User not found")
-          return res.status(404).send("Please login or register")
-        }
-        const details = user.billingDetails || {}
-        const user_details = {
-          Full_Name: details.FullName || req.user.name,
-          Email: details.FullName || req.user.username,
-          PhoneNo: details.FullName || req.user.phoneNo,
-          City: details.City||"",
-          State:details.State||"",
-          Address: details.Address||"",
-          country:details.country|| "",
+      if (!user) {
+        console.log("User not found")
+        return res.status(404).send("Please login or register")
+      }
+      const details = user.billingDetails || {}
+      const user_details = {
+        Full_Name: details.FullName || req.user.name,
+        Email: details.FullName || req.user.username,
+        PhoneNo: details.FullName || req.user.phoneNo,
+        City: details.City || "",
+        State: details.State || "",
+        Address: details.Address || "",
+        country: details.country || "",
 
-        }
-        const cartItems = user.carts || []
-        const salesItems = (sales_price) => {
-          cartItems.map(item => {
-            if (item.product_sales)
-              sales_price += item.product_price * 0.75
+      }
+      const cartItems = user.carts || []
+      const salesItems = (sales_price) => {
+        cartItems.map(item => {
+          if (item.product_sales)
+            sales_price += item.product_price * 0.75
 
-          })
-          return sales_price
-        }
-
-
-        const total = (price) => {
-          cartItems.map(item => {
-            if (!item.product_sales)
-              price += item.product_price + salesItems(0)
-
-          })
-
-          return price
-        }
-        res.render("checkout", { cartItems: cartItems, total: total, user_details: user_details, user: user, req: req })
-      } else {
-        res.redirect('/login')
-      
+        })
+        return sales_price
       }
 
-    } catch (err) {
-      console.error( err)
-      res.status(500).send("Internal Server Error")
+
+      const total = (price) => {
+        cartItems.map(item => {
+          if (!item.product_sales)
+            price += item.product_price + salesItems(0)
+
+        })
+
+        return price
+      }
+      res.render("checkout", { cartItems: cartItems, total: total, user_details: user_details, user: user, req: req })
+    } else {
+      res.redirect('/login')
+
     }
-  
+
+  } catch (err) {
+    console.error(err)
+    res.status(500).send("Internal Server Error")
+  }
+
   // else {
   //   try {
   //     if (req.isAuthenticated()) {
@@ -811,8 +847,8 @@ app.post('/checkout', async (req, res) => {
   }
 })
 app.get('/send-orders', async (req, res) => {
- if(req.isAuthenticated){
-     try {
+  if (req.isAuthenticated) {
+    try {
       if (req.isAuthenticated()) {
         const userId = req.user._id;
         const user = await UserModel.findById(userId);
@@ -825,10 +861,10 @@ app.get('/send-orders', async (req, res) => {
           Full_Name: details.FullName || req.user.name,
           Email: details.FullName || req.user.username,
           PhoneNo: details.FullName || req.user.phoneNo,
-          City: details.City||"",
-          State:details.State||"",
-          Address: details.Address||"",
-          country:details.country|| "",
+          City: details.City || "",
+          State: details.State || "",
+          Address: details.Address || "",
+          country: details.country || "",
 
         }
         const cartItems = user.carts || []
@@ -857,15 +893,15 @@ app.get('/send-orders', async (req, res) => {
       }
 
     } catch (err) {
-      console.error( err)
+      console.error(err)
       console.log(err)
       res.status(500).send("Internal Server Error")
     }
- 
- }
- else{
-  res.redirect("/login")
- }
+
+  }
+  else {
+    res.redirect("/login")
+  }
   // else {
   //   try {
   //     if (req.isAuthenticated()) {
@@ -1145,31 +1181,55 @@ app.get('/edit-product/:productId', async (req, res) => {
   }
 });
 
-app.post('/edit-product', async (req, res) => {
+app.post('/edit-product',  upload.single('productImage'), async (req, res) => {
 
   try {
     const { name, price, description, quantity, onSale } = req.body;
-    const productId = req.body.productId;
-    const updateProduct = {
-      name: name,
-      price: price,
-      description: description,
-      quantity: quantity,
-      sales: onSale === 'on',
+        // Upload image to Cloudinary
+    const result = await cloudinary.uploader.upload_stream({
+      resource_type: 'image',
+      folder: 'ninaimg', // Optional: specify a folder in Cloudinary
+    }, async(error, result) => {
+      if (error) {
+        console.error('Error uploading to Cloudinary:', error);
+        return res.status(500).send('Cloudinary upload failed.');
+      }
+      const productImage = {
+        data: req.file.buffer,
+        contentType: req.file.mimetype,
+        name: req.file.originalname,
+        url: result.secure_url,
 
-    }
-    console.log(updateProduct)
-    // Find the product based on the productId in your MongoDB database
-    const product = await Product.findByIdAndUpdate(productId, updateProduct, { new: true });
+      };
+      // 
+      const productId = req.body.productId;
+      const updateProduct = {
+        name: name,
+        price: price,
+        description: description,
+        quantity: quantity,
+        image: productImage,
+        sales: onSale === 'on',
+  
+      }
+      console.log(updateProduct)
+      // Find the product based on the productId in your MongoDB database
+      const product = await Product.findByIdAndUpdate(productId, updateProduct, { new: true });
+  
+      if (!product) {
+        // If the product is not found, you can handle it accordingly (e.g., render an error page)
+        return res.render('error-404', { error: 'Product not found' });
+      }
+      console.log(product)
+      // Render the "update-product" page and pass the product details
+      res.redirect('/product-list')
+    })
+    
+    result.end(req.file.buffer);
+ 
+  } 
 
-    if (!product) {
-      // If the product is not found, you can handle it accordingly (e.g., render an error page)
-      return res.render('error-404', { error: 'Product not found' });
-    }
-    console.log(product)
-    // Render the "update-product" page and pass the product details
-    res.render('product-update', { product: product });
-  } catch (error) {
+  catch (error) {
     // Handle any errors that occur during the database query or rendering
     console.error(error);
     res.render('error-404', { error: 'Internal Server Error' });
@@ -1238,12 +1298,12 @@ app.get('/logout', (req, res) => {
   req.session.destroy();
   res.redirect('/');
 });
-app.post('/logout', function(req, res){
+app.post('/logout', function (req, res) {
   req.logout().then(() => res.redirect('/'))
-   .catch(err => {
-    console.log(err);
-    res.send(err)
-   })
+    .catch(err => {
+      console.log(err);
+      res.send(err)
+    })
 
 });
 
