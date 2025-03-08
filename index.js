@@ -5,6 +5,7 @@ const passportLocalMongoose = require("passport-local-mongoose")
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const findOrCreate = require("mongoose-findorcreate")
 const basicAuth = require('express-basic-auth');
+const path = require("path")
 const cloudinary = require('cloudinary').v2;
 const app = express();
 const ejs = require("ejs")
